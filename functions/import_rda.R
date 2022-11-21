@@ -1,17 +1,20 @@
 # function to import Rda file but with a custom name
-import_rda <- function(file, rm_rda = TRUE) {
+import_rda <- function(file, object_name = NA, rm_rda = TRUE) {
   # load the Rda file in the function's environment (not the global one)
   load(file)
   
   # extract the object's name from the file name
-  obj <- stringr::str_replace(file, 'data/telemetries/', replacement = '')
-  obj <- stringr::str_replace(obj, '.Rda', replacement = '')
+  if(is.na(object_name)) {
+    object_name <- stringr::str_replace(file, 'data/telemetries/', replacement = '')
+    object_name <- stringr::str_replace(object_name, '.Rda', replacement = '')
+  }
   
   # return the imported object
-  return(get(obj))
+  return(get(object_name))
 }
 
 # test the function
 if(FALSE) {
-  import_rda('data/telemetries/Oreamnos_americanus.Rda')
+  head(import_rda('data/telemetries/Oreamnos_americanus.Rda'))
+  head(import_rda('data/telemetries/Rangifer_tarandus.Rda', object_name = 'data'))
 }
