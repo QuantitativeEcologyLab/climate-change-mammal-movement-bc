@@ -40,3 +40,6 @@ vignettes/*.pdf
 
 # climateNA files and outputs
 climate-na/*
+
+# ECMWF data
+data/ecmwfr-data/*
