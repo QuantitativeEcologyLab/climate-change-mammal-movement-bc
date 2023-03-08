@@ -43,3 +43,9 @@ climate-na/*
 
 # ECMWF data
 data/ecmwfr-data/*
+
+# all models (too large)
+models/*
+
+# phylopic figures
+figures/phylopic/*
