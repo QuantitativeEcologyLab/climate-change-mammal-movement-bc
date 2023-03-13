@@ -1,3 +1,6 @@
+# thumbnail database files
+*/Thumbs.db
+
 # History files
 .Rhistory
 .Rapp.history
@@ -61,3 +64,10 @@ figures/phylopic/*
 
 # rasters
 *.tif
+*.nc
+
+# rds files
+*.rds
+
+# zip files
+*.zip
