@@ -49,3 +49,15 @@ models/*
 
 # phylopic figures
 figures/phylopic/*
+
+# shapefiles and related files
+*.cpg
+*.dbf
+*.prj
+*.qmd
+*.shp
+*.shx
+*.html
+
+# rasters
+*.tif
