@@ -1,0 +1,2 @@
+https://catalogue.data.gov.bc.ca/dataset/caribou-herd-locations-for-bc
+click on "Access/Download" under "BC Geographic Warehouse Custom Download"

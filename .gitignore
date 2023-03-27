@@ -71,3 +71,22 @@ figures/phylopic/*
 
 # zip files
 *.zip
+
+# old code (kept locally, temporarily)
+analysis/old-code
+
+# thumbnail files
+*/Thumbs.db
+
+# tracking data (private)
+data/tracking-data
+
+# BCPARF figures (outdated)
+figures/bcparf-2022-nanaimo
+
+# ignore tutorials on RSF via ctmm and mgcv
+tutorials
+
+# output of plot.gam() for elk HRSF
+figures/elk-hrsf-terms-2023-03-14.png
+data/area-dem-2022-11-23-low-res.csv

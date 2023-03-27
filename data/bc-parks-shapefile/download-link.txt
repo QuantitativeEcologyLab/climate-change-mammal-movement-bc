@@ -1,0 +1,2 @@
+https://catalogue.data.gov.bc.ca/dataset/bc-parks-ecological-reserves-and-protected-areas
+click "Access/Download" below "BC Geographic Warehouse Custom Download"

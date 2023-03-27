@@ -1,14 +1,18 @@
 library('ctmm')   # for movement data
-library('ecmwfr') # for data from EU Centre for Medium-Range Weather Forecasts
+library('ecmwfr') # for data from EU Centre for Medium-range Weather Forecasts
 library('dplyr')  # for data wrangling
 
-# get info from copernicus website
-wf_set_key(user = '', key = '', service = 'cds')
+#' might want to see how `wf_request_batch()` works
+
+# get your login info from the copernicus website
+if(FALSE) wf_set_key(user = '', key = '', service = 'cds')
 
 # find which dates are needed
 times <- readRDS('data/tracking-data/full-dataset.rds') %>%
   pull(tel) %>%
-  purrr::map(\(.t) format(.t$timestamp, format = '%Y-%m-%d %H:00') %>%
+  purrr::map(\(.t) .t$timestamp %>%
+               as.POSIXct() %>%
+               round(units = 'hours') %>%
                unique() %>%
                as.character()) %>%
   unlist() %>%
@@ -27,6 +31,8 @@ head(times) # check format
 #' if the download fails, run the following line to start from the failed time
 times <- times[times >= timestamp]
 times[1]
+
+hist(lubridate::decimal_date(as.POSIXct(times)))
 
 # to create a new request:
 #' *1* copy API from Copernicus website
@@ -48,7 +54,7 @@ for(timestamp in times) {
   
   # download the data
   ncfile <- wf_request(user = '165099', request = request, transfer = TRUE,
-                       path = 'data/ecmwfr-data', verbose = TRUE)
+                       path = 'data/ecmwfr-data', verbose = FALSE)
   unzip(zipfile = 'data/ecmwfr-data/download.netcdf.zip',
         exdir = 'data/ecmwfr-data')
   file.rename(from = 'data/ecmwfr-data/data.nc',
