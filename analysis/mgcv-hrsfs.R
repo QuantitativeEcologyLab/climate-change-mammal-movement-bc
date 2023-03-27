@@ -7,7 +7,6 @@ library('mgcv')    # for GAMs
 library('ggplot2') # for fancy plots
 theme_set(theme_bw()) # change ggplot theme
 source('functions/seq_range.R') # custom version of seq()
-sf_use_s2(use_s2 = FALSE) # because of overlapping borders in some polygons
 
 K <- 1e-6 # scaling constant for weights
 
@@ -20,7 +19,8 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
   ones <-
     readRDS('data/standardized-speeds.rds') %>%
     filter(species == SPECIES) %>%
-    mutate(detected = 1)
+    mutate(detected = 1) %>%
+    mutate(weight = weight / 1e-6)
   
   #' elk have a sample size 133 times greater than other species and an
   #' effective sample size 90 times greater than other species, but this results
@@ -37,7 +37,7 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
       # drop observations per each animal to ensure the new weights are correct
       group_by(animal) %>%
       mutate(n_0 = n()) %>% # find current sample size
-      slice(seq(1, n(), by = 4)) %>% # take one row every 4
+      slice(seq(1, n(), by = 10)) %>% # take a subset of the rows
       mutate(n_1 = n(), # find new sample size
              c = n_0 / n_1, # find scaling constant based on change in n
              weight_1 = weight * c, # scale new weights accordingly
@@ -46,6 +46,8 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
       select(-c(n_0, n_1, c, weight, check)) %>%
       # rename the weight column
       rename(weight = weight_1) %>%
+      #' make sure it's not above 1 * `K`
+      mutate(weight = if_else(weight > K, K, weight)) %>%
       # remove grouping by animal
       ungroup()
   }
@@ -91,12 +93,13 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
                  forest_perc = extract(forest_r, ones_sp),
                  dist_w_m = extract(water_r, ones_sp),
                  elev_m = extract(dem, ones_sp))
+  rm(ones_sp)
   
   if(any(is.na(ones$forest_perc), is.na(ones$dist_w_m), is.na(ones$elev_m))) {
     stop('Some locations are outside the cropped resource rasters.')
   }
   
-  # use all raster cells as unobserved locations ----
+  # use all raster cells (after cropping) as unobserved locations ----
   d <-
     as.data.frame(forest_r, xy = TRUE) %>%
     rename(forest_perc = consensus_full_class_1) %>%
@@ -133,8 +136,7 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
                   tp_mm = TPS,
                   sde_mm = SDES) %>%
       unnest(dat)
-  } else { # otherwise add 10 values for each weather variable
-    # values for weather variables in quadrature points
+  } else { # otherwise add 10 values for each weather variable for each zero
     STEPS <- seq(0.1, 0.9, length.out = 10)
     TEMPS <- quantile(ones$temp_c, STEPS, na.rm = TRUE)
     TPS <- quantile(ones$tp_mm, STEPS, na.rm = TRUE)
@@ -159,8 +161,7 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
   # exploratory diagnostic plots ----
   if(FALSE) {
     # plot the data for a quick check
-    tidyr::pivot_longer(d,
-                        c(forest_perc, dist_w_m, elev_m, temp_c, tp_mm, sde_mm)) %>%
+    pivot_longer(d, c(forest_perc, dist_w_m, elev_m, temp_c, tp_mm, sde_mm)) %>%
       ggplot() +
       facet_wrap(~ detected + name, scales = 'free') +
       geom_density(aes(value, color = factor(species)), fill = NA,
@@ -173,7 +174,7 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
       mutate(.sqrt_dist_w_m = sqrt(dist_w_m),
              .sqrt_sde_mm = sqrt(sde_mm),
              .sqrt_tp_mm = sqrt(tp_mm)) %>%
-      tidyr::pivot_longer(- c(species, detected)) %>%
+      pivot_longer(- c(species, detected)) %>%
       ggplot() +
       facet_wrap(~ detected + name, scales = 'free', nrow = 2) +
       geom_density(aes(value, color = factor(species)), fill = NA,
@@ -185,7 +186,7 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
       mutate(dist_w_m = sqrt(dist_w_m),
              sde_mm = sqrt(sde_mm),
              tp_mm = sqrt(tp_mm)) %>%
-      tidyr::pivot_longer(-c(detected, species, weight, p)) %>%
+      pivot_longer(-c(detected, species, weight, p)) %>%
       ggplot(aes(value, detected)) +
       facet_wrap(~ name, scales = 'free') +
       geom_point(alpha = 0.1) +
@@ -196,10 +197,13 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
       khroma::scale_fill_bright()
   }
   
+  # clean up the environment to save RAM
+  gc()
+  
   # fit the Hierarchical Resource Selection Function (HIRSF) ----
   m <-
     bam(
-      detected / K ~ # 1s become 1e6, 0s stay 0
+      detected / K ~ #' 1s become `K`, 0s stay 0
         
         # global marginal effects of resources
         #' *NOTE:* marginals of temp, precip, and elev don't affect `detected` 
@@ -240,7 +244,10 @@ for(SPECIES in c('Oreamnos_americanus', 'Puma_concolor', 'Rangifer_tarandus',
   # save the model so it can be used later without re-fitting it
   stringr::str_replace_all(SPECIES, '_', '-') %>%
     stringr::str_replace_all(' ', '-') %>%
-    paste0('models/hrsf-', ., '-', Sys.Date(), '-quarter-of-dataset.rds') %>%
+    paste0('models/hrsf-', ., '-', Sys.Date(),
+           if_else(condition = SPECIES == 'Cervus elaphus',
+                   true = '-tenth-of-dataset.rds',
+                   false = '.rds')) %>%
     saveRDS(m, .)
   rm(m, d)
 }
