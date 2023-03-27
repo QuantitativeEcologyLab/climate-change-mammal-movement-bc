@@ -89,4 +89,6 @@ tutorials
 
 # output of plot.gam() for elk HRSF
 figures/elk-hrsf-terms-2023-03-14.png
+
+# ignore old dem
 data/area-dem-2022-11-23-low-res.csv
